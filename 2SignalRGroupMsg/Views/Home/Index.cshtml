@@ -1,0 +1,111 @@
+﻿@{
+    ViewBag.Title = "Group Msg";
+}
+
+<h2>Index</h2>
+
+<div class="container">
+    <p><b>Peer-to-peer - communications sent to clients are initiated by one of the clients</b></p>
+    <p>Number of connected users:&nbsp;<span id="usersCount">0</span></p>
+
+    <label>Sender&nbsp;&nbsp;&nbsp;</label>
+    <input type="text" id="sendername" /><br />
+    <label>Message</label>
+    <input type="text" id="message" />
+    <input type="button" id="sendmessage" value="Send" />
+    <ul id="discussion"></ul>
+</div>
+
+<div class="container">
+    <p><strong>Server broadcast - communications sent to clients are initiated by the server</strong></p>
+    <p>Server Time:&nbsp;<span id="timestamp"></span></p>
+</div>
+
+<div class="container">
+    <p><strong>Group broadcast - sending a message to a group of users</strong></p>
+    <label>Message</label>
+    <input type="text" id="groupmessage" />
+    <input type="button" id="sendgroupmessage" value="Send" />
+    <ul id="messagefromgroup"></ul>
+</div>
+
+@section scripts
+{
+    <!--引用SignalR库. -->
+    <script src="~/Scripts/jquery.signalR-2.2.1.min.js"></script>
+    <!--引用自动生成的SignalR 集线器(Hub)脚本.在运行的时候在浏览器的Source下可看到 -->
+    <script src="~/signalr/hubs"></script>
+
+    <!--Add script to update the page and send messages.-->
+    <script type="text/javascript">
+        $(function () {
+            /* Peer-to-peer broadcast code */
+            // Declare a proxy to reference the ChatHub.
+            var chat = $.connection.chatHub;
+
+            // Create a callback function in the script.
+            // The hub class on the server calls this function to push content updates to each client.
+            chat.client.broadcastMessage = function (name, message) {
+                $('#discussion').append('<li><strong>' + name + '</strong>:&nbsp;&nbsp;' + message + '</li>');
+            };
+
+            // Update the number of the connected users
+            // The hub class on the server calls this function to update the number of connected users
+            chat.client.reportConnections = function (count) {
+                $("#usersCount").text(count);
+            }
+
+            // Set initial focus to the sender input box
+            $('#sendername').focus();
+
+            $('#sendmessage').click(function () {
+                // Call the Send method on the hub.
+                // The user name will be prepended to the message
+                chat.server.send($('#sendername').val(), $('#message').val());
+
+                // Clear text box and reset focus for next comment.
+                $('#message').val('').focus();
+            });
+            /* End Peer-to-peer broadcast code */
+
+            /* Server broadcast code */
+            // Declare a proxy to reference the ServerBroadcastHub.
+            var timestamp = $.connection.serverBroadcastHub;
+
+            // Create a callback function in the script.
+            // The hub class on the server calls this function to push content updates to each client.
+            timestamp.client.broadcastTimestamp = function (datetime) {
+                $("#timestamp").text(datetime);
+            };
+            /* End Server broadcast code */
+
+            /* Group broadcast code */
+            // Declare a proxy to reference the ServerBroadcastHub.
+            var group = $.connection.groupBroadcastHub;
+
+            // Create a callback function in the script.
+            // The hub class on the server calls this function to push content updates to each client.
+            group.client.broadcastGroupMessage = function (message) {
+                $('#messagefromgroup').append('<li>' + message + '</li>');
+            };
+
+            $('#sendgroupmessage').click(function () {
+                // Call the SendToGroup method on the hub.
+                group.server.sendToGroup($('#groupmessage').val());
+
+                // Clear text box and reset focus for next message.
+                $('#groupmessage').val('').focus();
+            });
+            /* End Group broadcast code */
+
+            // Start the connection
+            $.connection.hub.logging = true;
+            $.connection.hub.start().done(function () {
+                alert("Connect to SignalR hub Successfully!");
+            });
+
+            $.connection.hub.start().fail(function (data) { alert("fail=" + data); });
+
+        });
+    </script>
+}
